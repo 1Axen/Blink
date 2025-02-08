@@ -453,13 +453,18 @@ end
 --> Used to consume identifiers without getting "Expected Identifier, got Keyword" errors
 --> Boolean flag here is code smell but this codebase is already EOL and will soonish be replaced by the rewrite
 
-function Parser.ConsumeText(self: Parser, ConsumePrimitives: boolean?): Token
+function Parser.ConsumeText(self: Parser, ConsumePrimitives: boolean?, ConsumeStrings: boolean?): Token
     --> Get text token
     local Token: Token;
-    if ConsumePrimitives then
-        Token = self:ConsumeAny("As", "Import", "Boolean", "Keyword", "Identifier", "Primitive")
+
+    if ConsumeStrings and self:Peek().Type == "String" then
+        Token = self:Consume("String")
     else
-        Token = self:ConsumeAny("As", "Import", "Boolean", "Keyword", "Identifier")
+        if ConsumePrimitives then
+            Token = self:ConsumeAny("As", "Import", "Boolean", "Keyword", "Identifier", "Primitive")
+        else
+            Token = self:ConsumeAny("As", "Import", "Boolean", "Keyword", "Identifier")
+        end
     end
 
     --> Convert token to identifier token
@@ -1339,7 +1344,7 @@ function Parser.Set(self: Parser, Name: Token): Set
             break
         end
 
-        local Token = self:ConsumeText(true)
+        local Token = self:ConsumeText(true, true)
         table.insert(Values, Token.Value)
 
         if self:TryConsume("CloseBraces") then
@@ -1409,7 +1414,7 @@ function Parser.Enum(self: Parser, Name: Token): Enum | TagEnum
             break
         end
 
-        local Token = self:ConsumeText(true)
+        local Token = self:ConsumeText(true, true)
         table.insert(Values, Token.Value)
 
         if self:TryConsume("CloseBraces") then
@@ -1436,7 +1441,16 @@ function Parser.TagEnum(self: Parser, Tag: Token, Name: Token): TagEnum
             break
         end
 
-        local Token = self:ConsumeText(true)
+        local Token: Token
+        
+        if self:Peek().Type == "OpenBrackets" then
+            self:Consume("OpenBrackets")
+            Token = self:Consume("String")
+            self:Consume("CloseBrackets")
+        else
+            Token = self:ConsumeText(true)
+        end
+        
         local Struct = self:Struct(Token)
         local Fields = Struct.Value.Values
 
@@ -1533,7 +1547,16 @@ function Parser.Struct(self: Parser, Name: Token): Struct
                 Fields[FieldIdentifier] = true
             end
         else --> fields
-            local Text = self:ConsumeText(true)
+            local Text: Token
+            
+            if self:Peek().Type == "OpenBrackets" then
+                self:Consume("OpenBrackets")
+                Text = self:Consume("String")
+                self:Consume("CloseBrackets")
+            else
+                Text = self:ConsumeText(true)
+            end
+  
             if Fields[Text.Value] then
                 error(Error.new(Error.AnalyzeDuplicateField, self.Source, `Duplicate field "{Text.Value}"`, self.File)
                     :Primary(Text, `Duplicate field`)

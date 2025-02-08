@@ -119,7 +119,7 @@ end
 function Block.Declare(self: Block, Variable: string, Initialize: boolean?): (string)
     local Block = self
     local Declared = false
-    local IsFieldAccess = (string.find(Variable, ".", 1, true) ~= nil)
+    local IsFieldAccess = (string.find(Variable, "[%.%[]", 1) ~= nil)
 
     --> Ignore field acceses
     if IsFieldAccess then

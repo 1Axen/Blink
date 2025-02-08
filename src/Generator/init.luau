@@ -95,6 +95,24 @@ local Types = Prefabs.Types
 local Primitives = Prefabs.Primitives
 local Structures = Prefabs.Structures
 
+local function IsValidIdentifier(Identifier: string): boolean
+	return Identifier:match("%a%w*") == Identifier
+end
+
+local function FormatKey(Key: string): string
+	if not IsValidIdentifier(Key) then
+		return `["{Key}"]`
+	end
+	return Key
+end
+
+local function FormatIndex(Index: string): string
+	if not IsValidIdentifier(Index) then
+		return `["{Index}"]`
+	end
+	return `.{Index}`
+end
+
 --> Declaration functions
 
 function Declarations.Primitive(Declaration: Parser.Primitive, Read: Blocks.Block, Write: Blocks.Block, Variable: string)
@@ -125,7 +143,7 @@ function Declarations.Set(Declaration: Parser.Set, Read: Blocks.Block, Write: Bl
 			Prefabs.Types.boolean.Read(Flag, Read)
 			Read:Character(",")
 		else
-			Read:Line(`{Flag} = (bit32.extract(SET_BITS, {Index - 1}) == 1),`, Read.Indent + 1)
+			Read:Line(`{FormatKey(Flag)} = (bit32.extract(SET_BITS, {Index - 1}) == 1),`, Read.Indent + 1)
 		end
 	end
 
@@ -138,9 +156,9 @@ function Declarations.Set(Declaration: Parser.Set, Read: Blocks.Block, Write: Bl
 
 	for Index, Flag in Flags do
 		if IsOverBit32Limit then
-			Prefabs.Types.boolean.Write(`{Variable}.{Flag}`, Write)
+			Prefabs.Types.boolean.Write(`{Variable}{FormatIndex(Flag)}`, Write)
 		else
-			Write:Line(`SET_BITS = bit32.bor(SET_BITS, bit32.lshift(({Variable}.{Flag}) and 1 or 0, {Index - 1}))`)
+			Write:Line(`SET_BITS = bit32.bor(SET_BITS, bit32.lshift(({Variable}{FormatIndex(Flag)}) and 1 or 0, {Index - 1}))`)
 		end
 	end
 
@@ -225,7 +243,7 @@ function Declarations.Struct(Declaration: Parser.Struct, Read: Blocks.Block, Wri
 
 	for _, Field in Value.Values do
 		local Name = Field.Name
-		local FieldVariable = `{Variable}.{Name}`
+		local FieldVariable = `{Variable}{FormatIndex(Name)}`
 		Generators.UserType(Field :: Type, Read, Write, FieldVariable)
 	end
 end
@@ -244,7 +262,7 @@ function Declarations.TagEnum(Declaration: Parser.TagEnum, Read: Blocks.Block, W
 	--> Body
 	local Tag = Value.Tag
 	local Header = `"{Values[1].Name}"`
-	local TagIndex = `{Variable}.{Tag}`
+	local TagIndex = `{Variable}{FormatIndex(Tag)}`
 
 	Types.u8.Read(`Tag`, Read)
 	Read:Line(`{Read:Declare(Variable)} = true :: any`)
@@ -892,7 +910,7 @@ function Generators.LuauType(Declaration: Type, UseTypeAsValue: boolean?, Prefix
 		local Entries: {string} = {}
 
 		for _, Flag in Value.Values do
-			table.insert(Entries, `{Flag}: boolean,`)
+			table.insert(Entries, `{FormatKey(Flag)}: boolean,`)
 		end
 
 		Type = `\{{table.concat(Entries)}\}`
@@ -904,7 +922,7 @@ function Generators.LuauType(Declaration: Type, UseTypeAsValue: boolean?, Prefix
 		local Literals = {}
 
 		for Index, Variant in Value.Values do
-			local TagField = `{Value.Tag}: "{Variant.Name}"`
+			local TagField = `{FormatKey(Value.Tag)}: "{Variant.Name}"`
 			local ValueType = Generators.LuauType(Variant)
 			table.insert(Literals, `\{ {TagField},{string.sub(ValueType, 2)}`)
 		end
@@ -922,7 +940,7 @@ function Generators.LuauType(Declaration: Type, UseTypeAsValue: boolean?, Prefix
 		for _, Field in Value.Values do
 			local Name = Field.Name
 			local FieldType = Generators.LuauType(Field)
-			table.insert(Fields, `{Name}: {FieldType}`)
+			table.insert(Fields, `{FormatKey(Name)}: {FieldType}`)
 		end
 
 		Type = `\{ {table.concat(Fields, ", ")}\ }`

@@ -1,0 +1,28 @@
+option ClientOutput = "../../Network/StringsClient.luau"
+option ServerOutput = "../../Network/StringsServer.luau"
+
+struct TestStruct { 
+    ["z z"]: u8,
+    ["1 1"]: u8,
+    ["2 2"]: u8,
+    ["3 3"]: u8
+}
+
+set TestFlags = { "a a" }
+enum TestEnums = { "b b" }
+
+enum TestTaggedEnums = "Type" {
+    ["c c"] {
+        Test: u8
+    }
+}
+
+event TestEvent 
+{
+    From: Client,
+    Type: Unreliable,
+    Call: SingleSync,
+
+    Data: (TestStruct, TestFlags, TestEnums)
+}
+
